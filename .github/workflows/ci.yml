@@ -85,13 +85,23 @@ jobs:
       - name: Migrate round-trip
         run: |
           set +e
-          alembic downgrade base && alembic upgrade head > migrate.log 2>&1
-          code=$?
-          if [ "$code" -ne 0 ]; then
+          alembic downgrade base > migrate-down.log 2>&1
+          down_code=$?
+          alembic upgrade head > migrate-up.log 2>&1
+          up_code=$?
+          if [ "$down_code" -ne 0 ]; then
             python - <<'PY'
           import base64
-          data = open('migrate.log', 'rb').read()
-          print('::error::DBTEST-B64:' + base64.b64encode(data[-2500:]).decode())
+          data = open('migrate-down.log', 'rb').read()
+          print('::error::DBTEST-DOWN:' + base64.b64encode(data[-2500:]).decode())
           PY
           fi
-          exit $code
+          if [ "$up_code" -ne 0 ]; then
+            python - <<'PY'
+          import base64
+          data = open('migrate-up.log', 'rb').read()
+          print('::error::DBTEST-UP:' + base64.b64encode(data[-2500:]).decode())
+          PY
+          fi
+          if [ "$down_code" -ne 0 ]; then exit $down_code; fi
+          exit $up_code
