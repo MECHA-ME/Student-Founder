@@ -79,17 +79,17 @@ jobs:
           e = create_engine(os.environ['DATABASE_URL'])
           with e.connect() as conn:
               tx = conn.begin()
-              conn.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag@example.com', 'Diag')"), {"i": u})
-              conn.execute(text("SET LOCAL app.user_id = :u"), {"u": u})
+              uid = str(uuid.uuid4())
+              conn.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag2@example.com', 'Diag')"), {"i": uid})
+              conn.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
               conn.execute(text("SET LOCAL app.org_id = ''"))
               conn.execute(text("SET LOCAL app.role = 'student'"))
               conn.execute(text("SET LOCAL ROLE app_role"))
-              print("after-set:", conn.execute(text("SELECT current_setting('app.user_id', true) AS v, current_user, (SELECT rolname FROM pg_roles WHERE rolname=current_setting('rolname', False) LIMIT 1)").mappings().first()))
               print("whoami:", conn.execute(text("SELECT current_user, session_user, current_setting('app.user_id', true)")).first())
               try:
-                  r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": u}).first()
+                  r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
                   print("INSERT OK", r)
-                  conn.execute(text("DELETE FROM projects WHERE owner_id = :o"), {"o": u})
+                  conn.execute(text("DELETE FROM projects WHERE owner_id = :o"), {"o": uid})
               except Exception as ex:
                   print("INSERT FAIL:", type(ex).__name__, str(ex))
               tx.rollback()
