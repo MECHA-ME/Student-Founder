@@ -490,11 +490,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.execute("DROP POLICY IF EXISTS messages_member_access ON messages")
-    op.execute("DROP POLICY IF EXISTS evidence_member_access ON evidence_items")
-    op.execute("DROP POLICY IF EXISTS projects_member_access ON projects")
-    op.execute("DROP FUNCTION IF EXISTS is_project_member(uuid)")
+    # CASCADE so inter-table foreign keys (e.g. projects -> stages) cannot block
+    # the drop order. Policies die with their tables; the function follows.
     for table in DOWNGRADE_TABLES:
-        op.execute(f"DROP TABLE IF EXISTS {table}")
+        op.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+    op.execute("DROP FUNCTION IF EXISTS is_project_member(uuid)")
     for enum_type in DOWNGRADE_TYPES:
         op.execute(f"DROP TYPE IF EXISTS {enum_type}")
