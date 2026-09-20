@@ -112,12 +112,14 @@ def test_cross_tenant_isolation():
         )
 
         conn.execute(text("SET LOCAL ROLE app_user"))
-        conn.execute(text("SET LOCAL app.user_id = :id"), {"id": user_b})
+        # NOTE: SET does not accept bound parameters, so the uuid (server-generated,
+        # quote-free by construction) is interpolated as a literal.
+        conn.execute(text(f"SET LOCAL app.user_id = '{user_b}'"))
         assert conn.execute(text("SELECT COUNT(*) FROM projects")).scalar() == 0
         assert conn.execute(text("SELECT COUNT(*) FROM evidence_items")).scalar() == 0
         assert conn.execute(text("SELECT COUNT(*) FROM messages")).scalar() == 0
 
-        conn.execute(text("SET LOCAL app.user_id = :id"), {"id": user_a})
+        conn.execute(text(f"SET LOCAL app.user_id = '{user_a}'"))
         assert conn.execute(text("SELECT COUNT(*) FROM projects")).scalar() == 1
         assert conn.execute(text("SELECT COUNT(*) FROM evidence_items")).scalar() == 1
         assert conn.execute(text("SELECT COUNT(*) FROM messages")).scalar() == 1
