@@ -29,8 +29,8 @@ engine = create_engine(DATABASE_URL) if DATABASE_URL else None
 
 @pytest.fixture(scope="module", autouse=True)
 def app_role():
+    reset_role()
     with engine.begin() as conn:
-        conn.execute(text("DROP ROLE IF EXISTS app_user"))
         conn.execute(text("CREATE ROLE app_user WITH LOGIN"))
         conn.execute(text("GRANT USAGE ON SCHEMA public TO app_user"))
         conn.execute(
@@ -38,8 +38,23 @@ def app_role():
                  "conversations, messages TO app_user")
         )
     yield
+    reset_role()
+
+
+def reset_role():
+    # DROP ROLE fails while grants depend on the role (e.g. after a crashed run),
+    # so revoke first. Wrapped in DO to stay idempotent when the role is absent.
     with engine.begin() as conn:
-        conn.execute(text("DROP ROLE IF EXISTS app_user"))
+        conn.execute(
+            text(
+                "DO $$ BEGIN "
+                "IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_user') THEN "
+                "REVOKE ALL ON SCHEMA public FROM app_user; "
+                "REVOKE ALL ON ALL TABLES IN SCHEMA public FROM app_user; "
+                "DROP ROLE app_user; "
+                "END IF; END $$"
+            )
+        )
 
 
 @contextmanager

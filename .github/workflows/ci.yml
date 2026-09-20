@@ -69,14 +69,5 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
       - run: alembic upgrade head
-      - name: Run db tests
-        run: |
-          set +e
-          python -m pytest tests/test_db.py -q --tb=short > pytest-db.log 2>&1
-          code=$?
-          if [ "$code" -ne 0 ]; then
-            body=$(tail -n 40 pytest-db.log | sed ':a;N;$!ba;s/\n/%0A/g')
-            echo "::error::$body"
-          fi
-          exit $code
+      - run: python -m pytest tests/test_db.py -q
       - run: alembic downgrade base && alembic upgrade head
