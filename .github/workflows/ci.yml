@@ -104,13 +104,11 @@ jobs:
           run("app-flow-with-explains", s1)
           PY
           code=$?
-          if [ "$code" -ne 0 ] || grep -qE "FAIL|FAIL:" diag.log; then
-            python - <<'PY'
+          python - <<'PY'
           import base64
           data = open('diag.log', 'rb').read()
-          print('::error::DBTEST-B64:' + base64.b64encode(data[-8000:]).decode())
+          print('::error::DBTEST-DIAG:' + base64.b64encode(data[-8000:]).decode())
           PY
-          fi
           exit $code
       - name: Run db tests
         run: |
