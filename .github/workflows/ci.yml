@@ -107,7 +107,7 @@ jobs:
           run("no-role-switch-insert", s2)
           PY
           code=$?
-          if [ "$code" -ne 0 ] || grep -q "INSERT FAIL" diag.log; then
+          if [ "$code" -ne 0 ] || grep -qE "FAIL|FAIL:" diag.log; then
             python - <<'PY'
           import base64
           data = open('diag.log', 'rb').read()
