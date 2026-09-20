@@ -57,13 +57,18 @@ def create_project(
         text("SELECT id FROM stages WHERE code = 'S0_READINESS'"),
     ).mappings().first()
     stage_id = str(stage["id"]) if stage else None
-    row = conn.execute(
+    # RLS note: INSERT ... RETURNING re-triggers the policy USING clause
+    # (is_project_member) against the returned row, but that check reads the row
+    # from projects before it is visible in the same statement, so it always fails.
+    # Generate the id here and read the row back instead.
+    project_id = str(uuid.uuid4())
+    conn.execute(
         text(
-            "INSERT INTO projects (owner_id, org_id, title, summary, entry_type, current_stage_id) "
-            "VALUES (:owner, :org, :title, :summary, :entry, :stage) "
-            "RETURNING id"
+            "INSERT INTO projects (id, owner_id, org_id, title, summary, entry_type, current_stage_id) "
+            "VALUES (:id, :owner, :org, :title, :summary, :entry, :stage)"
         ),
         {
+            "id": project_id,
             "owner": user.id,
             "org": user.org_id,
             "title": body.title,
@@ -71,8 +76,7 @@ def create_project(
             "entry": body.entry_type,
             "stage": stage_id,
         },
-    ).mappings().first()
-    project_id = str(row["id"])
+    )
     if stage_id:
         conn.execute(
             text(
