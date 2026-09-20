@@ -105,14 +105,14 @@ jobs:
               for name, wcc in variants.items():
                   sp = conn.begin_nested()
                   try:
-                      conn.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
-                      conn.execute(text("SET LOCAL app.org_id = ''"))
-                      conn.execute(text("SET LOCAL app.role = 'student'"))
-                      conn.execute(text("SET LOCAL ROLE app_role"))
                       conn.execute(text("DROP POLICY projects_member_access ON projects"))
                       conn.execute(text("""CREATE POLICY projects_member_access ON projects
                         USING (is_project_member(id))
                         WITH CHECK (%s)""" % wcc))
+                      conn.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
+                      conn.execute(text("SET LOCAL app.org_id = ''"))
+                      conn.execute(text("SET LOCAL app.role = 'student'"))
+                      conn.execute(text("SET LOCAL ROLE app_role"))
                       r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
                       print(f"[{name}] OK ->", r[0])
                       sp.commit()
