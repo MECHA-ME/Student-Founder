@@ -75,46 +75,35 @@ jobs:
           python - <<'PY' > diag.log 2>&1
           import os, uuid
           from sqlalchemy import create_engine, text
-          u = str(uuid.uuid4())
           e = create_engine(os.environ['DATABASE_URL'])
-
-          def try_insert(label, uid, setup):
-              with e.connect() as conn:
-                  tx = conn.begin()
-                  conn.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag3@example.com', 'Diag')"), {"i": uid})
-                  setup(conn, uid)
-                  guc = conn.execute(text("SELECT current_setting('app.user_id', true)")).fetchone()[0]
-                  print(f"{label} guc={guc} user={conn.execute(text('select current_user')).fetchone()[0]}")
-                  try:
-                      r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
-                      print(f"{label} INSERT OK", r)
-                  except Exception as ex:
-                      print(f"{label} INSERT FAIL:", type(ex).__name__, str(ex))
-                  tx.rollback()
-
-          uid_a = str(uuid.uuid4())
-          def setup_a(c, uid):
-              c.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
-              c.execute(text("SET LOCAL app.org_id = ''"))
-              c.execute(text("SET LOCAL app.role = 'student'"))
-              c.execute(text("SET LOCAL ROLE app_role"))
-          try_insert("A-local-then-role", uid_a, setup_a)
-
-          uid_b = str(uuid.uuid4())
-          def setup_b(c, uid):
-              c.execute(text("SET LOCAL ROLE app_role"))
-              c.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
-              c.execute(text("SET LOCAL app.org_id = ''"))
-              c.execute(text("SET LOCAL app.role = 'student'"))
-          try_insert("B-role-then-local", uid_b, setup_b)
-
-          uid_c = str(uuid.uuid4())
-          def setup_c(c, uid):
-              c.execute(text(f"SET app.user_id = '{uid}'"))
-              c.execute(text("SET app.org_id = ''"))
-              c.execute(text("SET app.role = 'student'"))
-              c.execute(text("SET LOCAL ROLE app_role"))
-          try_insert("C-session-set", uid_c, setup_c)
+          uid = str(uuid.uuid4())
+          with e.connect() as conn:
+              tx = conn.begin()
+              conn.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag3@example.com', 'Diag')"), {"i": uid})
+              conn.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
+              conn.execute(text("SET LOCAL app.org_id = ''"))
+              conn.execute(text("SET LOCAL app.role = 'student'"))
+              conn.execute(text("SET LOCAL ROLE app_role"))
+              print("guc:", conn.execute(text("SELECT current_user, current_setting('app.user_id', true)")).first())
+              print("clause1 (owner match):", conn.execute(text("SELECT :o::uuid = current_setting('app.user_id')::uuid"), {"o": uid}).fetchone()[0])
+              print("set_config variant:")
+              conn.execute(text(f"SELECT set_config('app.user_id', '{uid}', true)"))
+              print("  set_config guc:", conn.execute(text("SELECT current_setting('app.user_id', true)")).fetchone()[0])
+              try:
+                  r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
+                  print("  set_config INSERT OK", r)
+              except Exception as ex:
+                  print("  set_config INSERT FAIL:", type(ex).__name__, str(ex))
+              print("insert-with-select variant:")
+              conn.execute(text(f"SELECT set_config('app.user_id', '{uid}', true)"))
+              try:
+                  r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) SELECT :o, 'diag2', 'idea' RETURNING id"), {"o": uid}).first()
+                  print("  select INSERT OK", r)
+              except Exception as ex:
+                  print("  select INSERT FAIL:", type(ex).__name__, str(ex))
+              print("search global RLS flag + force-flag:")
+              print(conn.execute(text("SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname='projects'")).fetchall())
+              tx.rollback()
           PY
           code=$?
           if [ "$code" -ne 0 ] || grep -q "INSERT FAIL" diag.log; then
