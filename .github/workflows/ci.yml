@@ -35,3 +35,10 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run build
+
+  images:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t student-founder-api:ci backend
+      - run: docker build -t student-founder-web:ci frontend
