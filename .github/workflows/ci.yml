@@ -86,6 +86,14 @@ jobs:
               conn.execute(text("SET LOCAL app.role = 'student'"))
               conn.execute(text("SET LOCAL ROLE app_role"))
               print("whoami:", conn.execute(text("SELECT current_user, session_user, current_setting('app.user_id', true)")).first())
+              print("expr-check:", conn.execute(text("SELECT :o = current_setting('app.user_id')::uuid"), {"o": uid}).fetchone()[0])
+              print("policies:", conn.execute(text(
+                  "SELECT c.relname, p.polname, p.polcmd, "
+                  "pg_get_expr(p.polqual, p.polrelid) AS using_expr, "
+                  "pg_get_expr(p.polwithcheck, p.polrelid) AS withcheck_expr "
+                  "FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid "
+                  "WHERE c.relname IN ('projects','users','evidence_items','messages')"
+              )).fetchall())
               try:
                   r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
                   print("INSERT OK", r)
