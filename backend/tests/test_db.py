@@ -50,6 +50,7 @@ def reset_role():
             text(
                 "DO $$ BEGIN "
                 "IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_user') THEN "
+                "REVOKE ALL ON FUNCTION is_project_member(uuid) FROM app_user; "
                 "REVOKE ALL ON SCHEMA public FROM app_user; "
                 "REVOKE ALL ON ALL TABLES IN SCHEMA public FROM app_user; "
                 "DROP ROLE app_user; "

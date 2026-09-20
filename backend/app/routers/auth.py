@@ -114,7 +114,7 @@ def login(body: LoginRequest, request: Request, conn: Connection = Depends(get_c
     check_rate_limit(f"{email}:{ip}", limit=10, window_s=60)
     row = conn.execute(
         text(
-            "SELECT id, email, full_name, role, user_type, age_group, password_hash "
+            "SELECT id, email, full_name, role, user_type, age_group, org_id, password_hash "
             "FROM users WHERE email = :email AND deleted_at IS NULL"
         ),
         {"email": email},
