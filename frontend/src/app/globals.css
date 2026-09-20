@@ -1,0 +1,170 @@
+@import "tailwindcss";
+
+:root {
+  --background: #020617;
+  --foreground: #f8fafc;
+
+  /* Gamification color tokens */
+  --xp-color: #f59e0b;
+  --xp-glow: rgba(245, 158, 11, 0.4);
+  --level-color: #a78bfa;
+  --streak-color: #f97316;
+  --gate-color: #22d3ee;
+  --badge-glow: rgba(34, 211, 238, 0.35);
+  --confetti-1: #f43f5e;
+  --confetti-2: #22d3ee;
+  --confetti-3: #a78bfa;
+  --confetti-4: #f59e0b;
+  --confetti-5: #4ade80;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ─── Entrance animations ───────────────────────────────── */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes popIn {
+  0%   { opacity: 0; transform: scale(0.6); }
+  70%  { transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ─── Progress / XP animations ─────────────────────────── */
+@keyframes progressFill {
+  from { width: 0%; }
+}
+@keyframes xpShimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+/* ─── Glow / pulse animations ──────────────────────────── */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 var(--badge-glow); }
+  50%       { box-shadow: 0 0 0 12px transparent; }
+}
+@keyframes streakPulse {
+  0%, 100% { filter: drop-shadow(0 0 4px var(--streak-color)); }
+  50%       { filter: drop-shadow(0 0 10px var(--streak-color)); }
+}
+@keyframes orbFloat {
+  0%, 100% { transform: translateY(0px) scale(1); }
+  50%       { transform: translateY(-6px) scale(1.02); }
+}
+@keyframes orbPulseRing {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.8); opacity: 0; }
+}
+@keyframes shimmer {
+  0%   { background-position: -300% center; }
+  100% { background-position: 300% center; }
+}
+
+/* ─── Badge unlock animation ───────────────────────────── */
+@keyframes badgeUnlock {
+  0%   { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+  60%  { transform: scale(1.15) rotate(3deg); }
+  80%  { transform: scale(0.95) rotate(-1deg); }
+  100% { opacity: 1; transform: scale(1) rotate(0deg); }
+}
+@keyframes badgeGlow {
+  0%, 100% { box-shadow: 0 0 8px var(--badge-glow), 0 0 0 0 var(--badge-glow); }
+  50%       { box-shadow: 0 0 20px var(--badge-glow), 0 0 30px var(--badge-glow); }
+}
+
+/* ─── Gate unlock animation ────────────────────────────── */
+@keyframes gateRingExpand {
+  0%   { transform: scale(0.3); opacity: 1; }
+  100% { transform: scale(3.5); opacity: 0; }
+}
+@keyframes gateTextReveal {
+  0%   { opacity: 0; transform: translateY(20px) scale(0.9); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes gateOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ─── Confetti ──────────────────────────────────────────── */
+@keyframes confettiFall1 {
+  0%   { transform: translateY(0) rotate(0deg) translateX(0); opacity: 1; }
+  100% { transform: translateY(120px) rotate(720deg) translateX(-30px); opacity: 0; }
+}
+@keyframes confettiFall2 {
+  0%   { transform: translateY(0) rotate(0deg) translateX(0); opacity: 1; }
+  100% { transform: translateY(100px) rotate(-540deg) translateX(40px); opacity: 0; }
+}
+@keyframes confettiFall3 {
+  0%   { transform: translateY(0) rotate(0deg) translateX(0); opacity: 1; }
+  100% { transform: translateY(140px) rotate(400deg) translateX(20px); opacity: 0; }
+}
+@keyframes confettiFall4 {
+  0%   { transform: translateY(0) rotate(0deg) translateX(0); opacity: 1; }
+  100% { transform: translateY(90px) rotate(-300deg) translateX(-50px); opacity: 0; }
+}
+@keyframes confettiFall5 {
+  0%   { transform: translateY(0) rotate(0deg) translateX(0); opacity: 1; }
+  100% { transform: translateY(130px) rotate(600deg) translateX(10px); opacity: 0; }
+}
+
+/* ─── Typewriter ────────────────────────────────────────── */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+/* ─── Count-up number ───────────────────────────────────── */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Task check ────────────────────────────────────────── */
+@keyframes taskComplete {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.3); }
+  70%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+@keyframes checkPing {
+  0%   { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* ─── Stagger helpers ───────────────────────────────────── */
+.animate-slide-up   { animation: slideUp 0.5s ease-out both; }
+.animate-fade-in    { animation: fadeIn 0.5s ease-out both; }
+.animate-pop-in     { animation: popIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-slide-right{ animation: slideInRight 0.5s ease-out both; }
+
+.stagger-1  { animation-delay: 0.05s; }
+.stagger-2  { animation-delay: 0.12s; }
+.stagger-3  { animation-delay: 0.19s; }
+.stagger-4  { animation-delay: 0.26s; }
+.stagger-5  { animation-delay: 0.33s; }
+.stagger-6  { animation-delay: 0.40s; }
+.stagger-7  { animation-delay: 0.47s; }
+.stagger-8  { animation-delay: 0.54s; }
+
