@@ -76,45 +76,42 @@ jobs:
           import os, uuid
           from sqlalchemy import create_engine, text
           e = create_engine(os.environ['DATABASE_URL'])
+
+          def run(label, body):
+              with e.connect() as conn:
+                  tx = conn.begin()
+                  try:
+                      result = body(conn)
+                      print(f"[{label}] OK ->", result)
+                  except Exception as ex:
+                      print(f"[{label}] FAIL:", type(ex).__name__, str(ex).splitlines()[0])
+                  tx.rollback()
+
           uid = str(uuid.uuid4())
-          with e.connect() as conn:
-              tx = conn.begin()
-              conn.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag3@example.com', 'Diag')"), {"i": uid})
-              conn.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
-              conn.execute(text("SET LOCAL app.org_id = ''"))
-              conn.execute(text("SET LOCAL app.role = 'student'"))
-              conn.execute(text("SET LOCAL ROLE app_role"))
-              print("guc:", conn.execute(text("SELECT current_user, current_setting('app.user_id', true)")).first())
-              print("clause1 (owner match):", conn.execute(text("SELECT CAST(:o AS uuid) = current_setting('app.user_id')::uuid"), {"o": uid}).fetchone()[0])
-              print("set_config variant:")
-              conn.execute(text(f"SELECT set_config('app.user_id', '{uid}', true)"))
-              print("  set_config guc:", conn.execute(text("SELECT current_setting('app.user_id', true)")).fetchone()[0])
-              try:
-                  r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
-                  print("  set_config INSERT OK", r)
-              except Exception as ex:
-                  print("  set_config INSERT FAIL:", type(ex).__name__, str(ex))
-              print("insert-with-select variant:")
-              conn.execute(text(f"SELECT set_config('app.user_id', '{uid}', true)"))
-              try:
-                  r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) SELECT CAST(:o AS uuid), 'diag2', 'idea' RETURNING id"), {"o": uid}).first()
-                  print("  select INSERT OK", r)
-              except Exception as ex:
-                  print("  select INSERT FAIL:", type(ex).__name__, str(ex))
-              print("RLS flags:", conn.execute(text("SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname='projects'")).fetchall())
-              print("policies:", conn.execute(text(
-                  "SELECT p.polname, p.polcmd, pg_get_expr(p.polqual, p.polrelid) AS using_expr, "
-                  "pg_get_expr(p.polwithcheck, p.polrelid) AS withcheck_expr "
-                  "FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid WHERE c.relname='projects'"
-              )).fetchall())
-              tx.rollback()
+          def s1(c):
+              c.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag4@example.com', 'Diag')"), {"i": uid})
+              c.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
+              c.execute(text("SET LOCAL app.org_id = ''"))
+              c.execute(text("SET LOCAL app.role = 'student'"))
+              c.execute(text("SET LOCAL ROLE app_role"))
+              g = c.execute(text("SELECT current_user, current_setting('app.user_id', true)")).first()
+              c1 = c.execute(text("SELECT CAST(:o AS uuid) = current_setting('app.user_id')::uuid"), {"o": uid}).fetchone()[0]
+              print(f"[setup] who={g} clause1_owner_match={c1}")
+              return c.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
+          run("app-flow-insert", s1)
+
+          uid2 = str(uuid.uuid4())
+          def s2(c):
+              c.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag5@example.com', 'Diag')"), {"i": uid2})
+              return c.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid2}).first()
+          run("no-role-switch-insert", s2)
           PY
           code=$?
           if [ "$code" -ne 0 ] || grep -q "INSERT FAIL" diag.log; then
             python - <<'PY'
           import base64
           data = open('diag.log', 'rb').read()
-          print('::error::DBTEST-B64:' + base64.b64encode(data[-2500:]).decode())
+          print('::error::DBTEST-B64:' + base64.b64encode(data[-8000:]).decode())
           PY
           fi
           exit $code
