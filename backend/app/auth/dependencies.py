@@ -35,6 +35,9 @@ def set_rls_context(conn: Connection, user: UserContext) -> None:
     conn.execute(text(f"SET LOCAL app.user_id = '{user.id}'"))
     conn.execute(text(f"SET LOCAL app.org_id = '{user.org_id or ''}'"))
     conn.execute(text(f"SET LOCAL app.role = '{user.role}'"))
+    # Drop to the row-level-security role so the owner/member policies enforced
+    # by is_project_member actually apply (superusers bypass RLS).
+    conn.execute(text("SET LOCAL ROLE app_role"))
 
 
 def get_current_user(

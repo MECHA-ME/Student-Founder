@@ -37,6 +37,7 @@ def app_role():
             text("GRANT SELECT ON projects, project_members, evidence_items, "
                  "conversations, messages TO app_user")
         )
+        conn.execute(text("GRANT EXECUTE ON FUNCTION is_project_member(uuid) TO app_user"))
     yield
     reset_role()
 

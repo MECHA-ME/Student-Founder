@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
+from app.auth.ratelimit import reset_rate_limits
 from app.main import app
 
 DATABASE_URL = __import__("os").environ.get("DATABASE_URL")
@@ -19,6 +20,12 @@ pytestmark = pytest.mark.skipif(
 )
 
 engine = create_engine(DATABASE_URL) if DATABASE_URL else None
+
+
+@pytest.fixture(autouse=True)
+def reset_limits():
+    reset_rate_limits()
+    yield
 
 
 @pytest.fixture()
