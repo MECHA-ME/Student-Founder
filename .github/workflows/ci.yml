@@ -91,8 +91,8 @@ jobs:
           def s1(c):
               c.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag4@example.com', 'Diag')"), {"i": uid})
               c.execute(text("""CREATE OR REPLACE FUNCTION app_current_user_id() RETURNS uuid
-                LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS
-                \$\$ SELECT NULLIF(current_setting('app.user_id', true), '')::uuid \$\$$"""))
+                LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $fn$
+                SELECT NULLIF(current_setting('app.user_id', true), '')::uuid $fn$"""))
               c.execute(text("GRANT EXECUTE ON FUNCTION app_current_user_id() TO app_role"))
               c.execute(text("""DROP POLICY projects_member_access ON projects;
                 CREATE POLICY projects_member_access ON projects
