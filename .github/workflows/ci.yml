@@ -69,15 +69,16 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
       - run: alembic upgrade head
-      - run: >
-    python -m pytest tests/test_db.py tests/test_auth_api.py -q --tb=short > pytest-db.log 2>&1
-    code=$?
-    if [ "$code" -ne 0 ]; then
-      python - <<'PY'
-    import base64
-    data = open('pytest-db.log', 'rb').read()
-    print('::error::DBTEST-B64:' + base64.b64encode(data[-2500:]).decode())
-    PY
-    fi
-    exit $code
+      - name: Run db tests
+        run: |
+          python -m pytest tests/test_db.py tests/test_auth_api.py -q --tb=short > pytest-db.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            python - <<'PY'
+          import base64
+          data = open('pytest-db.log', 'rb').read()
+          print('::error::DBTEST-B64:' + base64.b64encode(data[-2500:]).decode())
+          PY
+          fi
+          exit $code
       - run: alembic downgrade base && alembic upgrade head
