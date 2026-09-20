@@ -104,8 +104,8 @@ jobs:
               c.execute(text("SET LOCAL app.org_id = ''"))
               c.execute(text("SET LOCAL app.role = 'student'"))
               c.execute(text("SET LOCAL ROLE app_role"))
-              print("[inline-check]", c.execute(text("SELECT :o::uuid = current_setting('app.user_id', true)::uuid"), {"o": uid}).first())
-              print("[definer-check]", c.execute(text("SELECT :o::uuid = app_current_user_id()"), {"o": uid}).first())
+              print("[inline-check]", c.execute(text("SELECT CAST(:o AS uuid) = current_setting('app.user_id', true)::uuid"), {"o": uid}).first())
+              print("[definer-check]", c.execute(text("SELECT CAST(:o AS uuid) = app_current_user_id()"), {"o": uid}).first())
               print("[explain]", c.execute(text("EXPLAIN (VERBOSE, COSTS OFF) INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).fetchall())
               try:
                   r = c.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
