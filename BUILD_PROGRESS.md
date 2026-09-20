@@ -52,10 +52,15 @@ session. Update after each working session: checkboxes, verification summaries, 
 - Verified 2026-09-20: `pytest backend/tests` 7 passed; backend `/healthz` smoke ok; `npm run lint`
   clean (fixed 3 pre-existing errors in ConfettiBurst, GateUnlockModal, TypewriterText); `next build`
   success (8 routes); `next start` smoke 200/200.
-- What is still missing for Step 1: GitHub remote + push, branch protection, commit hooks,
-  Dockerfiles, staging/prod environments, monitoring (Sentry/PostHog/Langfuse).
-- **Next best action:** review + initial commit, create GitHub repo + push, then continue Step 1
-  (Dockerfiles, staging env) or start Phase 0 validation interviews in parallel.
+- Commits `fcdfaec` (baseline) and `eda2abd` (Dockerfiles) pushed to
+  `https://github.com/MECHA-ME/Student-Founder` (`main`). GitHub Actions CI green on both runs:
+  backend pytest, frontend lint+build, and both docker image builds (`student-founder-api`,
+  `student-founder-web`). Local `docker build` not run (Docker Desktop daemon off); images are
+  verified through CI instead.
+- What is still missing for Step 1: branch protection on `main`, commit hooks, staging/prod
+  environments, monitoring (Sentry/PostHog/Langfuse).
+- **Next best action:** enable branch protection on GitHub (requires repo admin click), then continue
+  Step 1 (staging env + monitoring) or start Phase 0 validation interviews in parallel.
 
 ## Open decisions / risks
 
