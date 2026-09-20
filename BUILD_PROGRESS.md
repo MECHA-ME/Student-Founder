@@ -20,6 +20,7 @@ session. Update after each working session: checkboxes, verification summaries, 
   GitHub Actions CI, staging env, monitoring. `Done when:` hello-world deploys through CI/CD.
 - [ ] **Step 2 — Database.** Postgres + pgvector, Alembic migrations for Part 4 schema, seed stages/
   gates, indexes, RLS. `Done when:` clean migrations + cross-tenant tests + restore drill.
+  *(code done + CI-verified 2026-09-20; live provisioned DB + restore drill still open — see below)*
 - [ ] **Step 3 — Authentication.** Email + Google/GitHub, roles, JWT + RLS session settings,
   onboarding/consent, MFA for privileged roles, export/delete. `Done when:` roles tested via API.
 - [ ] **Step 4 — Core platform.** Project CRUD, dashboard, tasks/documents/files, notifications,
@@ -38,7 +39,22 @@ session. Update after each working session: checkboxes, verification summaries, 
 
 ## Current state (as of last session)
 
-- **Working on:** Step 1 (project setup) — local baseline done; remote/staging still open.
+- **Working on:** Step 2 (database) — code complete and CI-verified; Step 3 (auth) is next.
+- Step 2 record:
+  - `backend/alembic/` — env + `0001_initial_schema` (full Part 4 DDL: 10 enums, 32 tables,
+    10 indexes incl. hnsw vector indexes, RLS on projects/evidence_items/messages + member helper),
+    `0002_seed_stages_gates` (S0-S4 + v1 rubrics for S1/S2/S3, threshold 70),
+    `0003_member_check_definer` (SECURITY DEFINER fix — plain SQL functions inline into policies
+    and recurse on the owner check; found via CI failure, fixed, green).
+  - `backend/tests/test_db.py` — seeds, RLS flags, cross-tenant isolation (owner sees, outsider
+    sees nothing across projects/evidence/messages). Skips locally without DATABASE_URL.
+  - CI `db` job (pgvector:pg17 service): `alembic upgrade head` → pytest → `downgrade base` →
+    `upgrade head`. Green on run 10 (`ef41d06`).
+  - Still open for Step 2: provisioned managed Postgres for staging/prod (+pgvector, backups/PITR,
+    restore drill); per-table RLS policies for remaining tenant tables land with Steps 3-4
+    (core tables done; deny-by-default elsewhere).
+  - Note: no local Postgres on this machine and Docker Desktop daemon is off — DB verification runs
+    in CI. To run locally: install Postgres 17 + pgvector, set DATABASE_URL, `alembic upgrade head`.
 - What exists:
   - `backend/app/main.py` — FastAPI with mock `/api/v1` endpoints (`/healthz`, `/overview`, `/projects`,
     `/stages`, `/journey`) returning demo data. No DB, no auth yet.
