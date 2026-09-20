@@ -88,32 +88,39 @@ jobs:
                   tx.rollback()
 
           uid = str(uuid.uuid4())
-          def s1(c):
-              c.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag4@example.com', 'Diag')"), {"i": uid})
-              c.execute(text("""CREATE OR REPLACE FUNCTION app_current_user_id() RETURNS uuid
+          with e.connect() as conn:
+              tx = conn.begin()
+              conn.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag4@example.com', 'Diag')"), {"i": uid})
+              conn.execute(text("""CREATE OR REPLACE FUNCTION app_current_user_id() RETURNS uuid
                 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $fn$
                 SELECT NULLIF(current_setting('app.user_id', true), '')::uuid $fn$"""))
-              c.execute(text("GRANT EXECUTE ON FUNCTION app_current_user_id() TO app_role"))
-              c.execute(text("""DROP POLICY projects_member_access ON projects;
-                CREATE POLICY projects_member_access ON projects
-                USING (is_project_member(id))
-                WITH CHECK (owner_id = app_current_user_id()
-                  OR EXISTS (SELECT 1 FROM project_members pm
-                    WHERE pm.project_id = id AND pm.user_id = app_current_user_id()))"""))
-              c.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
-              c.execute(text("SET LOCAL app.org_id = ''"))
-              c.execute(text("SET LOCAL app.role = 'student'"))
-              c.execute(text("SET LOCAL ROLE app_role"))
-              print("[inline-check]", c.execute(text("SELECT CAST(:o AS uuid) = current_setting('app.user_id', true)::uuid"), {"o": uid}).first())
-              print("[definer-check]", c.execute(text("SELECT CAST(:o AS uuid) = app_current_user_id()"), {"o": uid}).first())
-              print("[explain]", c.execute(text("EXPLAIN (VERBOSE, COSTS OFF) INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).fetchall())
-              try:
-                  r = c.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
-                  return r
-              except Exception as ex:
-                  print("[definer-based-policy]", type(ex).__name__, str(ex).splitlines()[0])
-                  return "insert-failed"
-          run("app-flow-definer-wcc", s1)
+              conn.execute(text("GRANT EXECUTE ON FUNCTION app_current_user_id() TO app_role"))
+              variants = {
+                "P1-wcc-true": "true",
+                "P2-inline-eq-uid": f"current_setting('app.user_id', true) = '{uid}'::text",
+                "P3-owner-eq-definer": "owner_id = app_current_user_id()",
+                "P4-orig-inline": "owner_id = current_setting('app.user_id')::uuid OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = id AND pm.user_id = current_setting('app.user_id')::uuid)",
+                "P5-orig-definer": "owner_id = app_current_user_id() OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = id AND pm.user_id = app_current_user_id())",
+              }
+              for name, wcc in variants.items():
+                  sp = conn.begin_nested()
+                  try:
+                      conn.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
+                      conn.execute(text("SET LOCAL app.org_id = ''"))
+                      conn.execute(text("SET LOCAL app.role = 'student'"))
+                      conn.execute(text("SET LOCAL ROLE app_role"))
+                      conn.execute(text("DROP POLICY projects_member_access ON projects"))
+                      conn.execute(text("""CREATE POLICY projects_member_access ON projects
+                        USING (is_project_member(id))
+                        WITH CHECK (%s)""" % wcc))
+                      r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
+                      print(f"[{name}] OK ->", r[0])
+                      sp.commit()
+                  except Exception as ex:
+                      print(f"[{name}] FAIL:", type(ex).__name__, str(ex).splitlines()[0])
+                      sp.rollback()
+              tx.rollback()
+          print("done")
           PY
           code=$?
           python - <<'PY'
