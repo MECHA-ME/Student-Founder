@@ -85,7 +85,7 @@ jobs:
               conn.execute(text("SET LOCAL app.role = 'student'"))
               conn.execute(text("SET LOCAL ROLE app_role"))
               print("guc:", conn.execute(text("SELECT current_user, current_setting('app.user_id', true)")).first())
-              print("clause1 (owner match):", conn.execute(text("SELECT :o::uuid = current_setting('app.user_id')::uuid"), {"o": uid}).fetchone()[0])
+              print("clause1 (owner match):", conn.execute(text("SELECT CAST(:o AS uuid) = current_setting('app.user_id')::uuid"), {"o": uid}).fetchone()[0])
               print("set_config variant:")
               conn.execute(text(f"SELECT set_config('app.user_id', '{uid}', true)"))
               print("  set_config guc:", conn.execute(text("SELECT current_setting('app.user_id', true)")).fetchone()[0])
@@ -97,12 +97,16 @@ jobs:
               print("insert-with-select variant:")
               conn.execute(text(f"SELECT set_config('app.user_id', '{uid}', true)"))
               try:
-                  r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) SELECT :o, 'diag2', 'idea' RETURNING id"), {"o": uid}).first()
+                  r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) SELECT CAST(:o AS uuid), 'diag2', 'idea' RETURNING id"), {"o": uid}).first()
                   print("  select INSERT OK", r)
               except Exception as ex:
                   print("  select INSERT FAIL:", type(ex).__name__, str(ex))
-              print("search global RLS flag + force-flag:")
-              print(conn.execute(text("SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname='projects'")).fetchall())
+              print("RLS flags:", conn.execute(text("SELECT relname, relrowsecurity, relforcerowsecurity FROM pg_class WHERE relname='projects'")).fetchall())
+              print("policies:", conn.execute(text(
+                  "SELECT p.polname, p.polcmd, pg_get_expr(p.polqual, p.polrelid) AS using_expr, "
+                  "pg_get_expr(p.polwithcheck, p.polrelid) AS withcheck_expr "
+                  "FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid WHERE c.relname='projects'"
+              )).fetchall())
               tx.rollback()
           PY
           code=$?
