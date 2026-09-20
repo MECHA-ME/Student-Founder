@@ -37,6 +37,31 @@ session. Update after each working session: checkboxes, verification summaries, 
 - [ ] **Step 13 — Pilot launch.** 20-30 students, 2-3 institutions, metric tracking, cost per user.
 - [ ] **Step 14 — Iterate + plan Phase 2.** Retro, Phase 2 backlog, funding decisions post go/no-go.
 
+## What we did this session (2026-09-20, late)
+
+- **Fixed the RLS `INSERT ... RETURNING` blocker in auth** (session's main debug).
+- Root cause: `INSERT INTO projects ... RETURNING id` re-triggers the policy **USING** clause when
+  PostgreSQL rechecks returned rows; `is_project_member(id)` subquery can't see the just-inserted
+  row in the same statement snapshot → `new row violates row-level security policy`. Proven by
+  variants: WITH CHECK content is irrelevant (even `WITH CHECK (true)` + RETURNING fails; real
+  WITH CHECK + no RETURNING succeeds). Earlier `current_setting` const-folding hypothesis was
+  disproven via `EXPLAIN (VERBOSE, COSTS OFF)`.
+- Fix (`1b97bb0`): `create_project` generates `uuid4()` id client-side, INSERTs with explicit id,
+  no `RETURNING`. `Run db tests` went green.
+- **Second CI failure (migrate round-trip) → root-caused and fixed.**
+  - `alembic downgrade base` failed: `role "app_role" cannot be dropped because some objects
+    depend on it — privileges for sequence audit_logs_id_seq`. 0005's downgrade revoked tables
+    but not sequences.
+  - Fix (`66d2572`): added `REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM app_role;` to the
+    0005 downgrade.
+  - CI `db` job tooling: split the migrate round-trip into per-stage logs (`migrate-down.log` /
+    `migrate-up.log`) with `::error::DBTEST-DOWN/UP:` annotations; the prior single `&&` form
+    couldn't emit a log when `downgrade base` failed (redirect only applied to the last command).
+- **CI fully green** on `66d2572`: backend pytest, db (upgrade head → pytest → downgrade base →
+  upgrade head), frontend lint+build, both docker image builds. RLS insert test now passes.
+- Remaining for Step 3 (auth) after this: live provisioned Postgres for staging/prod + restore
+  drill (Step 2 carryover); branch protection + commit hooks (Step 1 carryover).
+
 ## Current state (as of last session)
 
 - **Working on:** Step 2 (database) — code complete and CI-verified; Step 3 (auth) is next.
