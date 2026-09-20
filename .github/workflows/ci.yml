@@ -95,22 +95,22 @@ jobs:
                 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $fn$
                 SELECT NULLIF(current_setting('app.user_id', true), '')::uuid $fn$"""))
               conn.execute(text("GRANT EXECUTE ON FUNCTION app_current_user_id() TO app_role"))
-              variants = {
-                "P1-wcc-true": ("true", True),
-                "P2-inline-eq-uid": (f"current_setting('app.user_id', true) = '{uid}'::text", True),
-                "P3-owner-eq-definer": ("owner_id = app_current_user_id()", True),
-                "P4-orig-inline": ("owner_id = current_setting('app.user_id')::uuid OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = id AND pm.user_id = current_setting('app.user_id')::uuid)", True),
-                "P5-orig-definer": ("owner_id = app_current_user_id() OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = id AND pm.user_id = app_current_user_id())", True),
+              cases = {
+                # (uses_real_wcc, returning, note)
+                "C1-real-wcc-no-returning": (True, False, "fix candidate"),
+                "C2-real-wcc-returning": (True, True, "control: expected old failure"),
+                "C3-wcc-true-returning": (False, True, "control: WITH CHECK irrelevant"),
               }
-              insert_cases = {
-                "P6-wcc-true-no-returning": ("true", False),
-                "P7-orig-definer-no-returning": ("owner_id = app_current_user_id() OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = id AND pm.user_id = app_current_user_id())", False),
-                "P8-orig-definer-returning": ("owner_id = app_current_user_id() OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = id AND pm.user_id = app_current_user_id())", True),
-                "P9-wcc-true-returning": ("true", True),
-              }
-              for name, (wcc, returning) in {**variants, **insert_cases}.items():
+              for name, (real_wcc, returning, note) in cases.items():
                   sp = conn.begin_nested()
                   try:
+                      sql = "INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea')"
+                      if returning:
+                          sql += " RETURNING id"
+                      if real_wcc:
+                          wcc = "owner_id = current_setting('app.user_id')::uuid OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = id AND pm.user_id = current_setting('app.user_id')::uuid)"
+                      else:
+                          wcc = "true"
                       conn.execute(text("DROP POLICY projects_member_access ON projects"))
                       conn.execute(text("""CREATE POLICY projects_member_access ON projects
                         USING (is_project_member(id))
@@ -119,11 +119,9 @@ jobs:
                       conn.execute(text("SET LOCAL app.org_id = ''"))
                       conn.execute(text("SET LOCAL app.role = 'student'"))
                       conn.execute(text("SET LOCAL ROLE app_role"))
-                      sql = "INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea')"
                       if returning:
-                          sql += " RETURNING id"
                           r = conn.execute(text(sql), {"o": uid}).first()
-                          print(f"[{name}] OK ->", r[0])
+                          print(f"[{name}] OK -> {r[0]}")
                       else:
                           conn.execute(text(sql), {"o": uid})
                           print(f"[{name}] OK -> inserted")
