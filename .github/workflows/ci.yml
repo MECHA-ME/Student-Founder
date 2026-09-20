@@ -69,6 +69,40 @@ jobs:
           python-version: "3.12"
       - run: pip install -r requirements-dev.txt
       - run: alembic upgrade head
+      - name: Diagnose RLS insert
+        run: |
+          set +e
+          python - <<'PY' > diag.log 2>&1
+          import os, uuid
+          from sqlalchemy import create_engine, text
+          u = str(uuid.uuid4())
+          e = create_engine(os.environ['DATABASE_URL'])
+          with e.connect() as conn:
+              tx = conn.begin()
+              conn.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag@example.com', 'Diag')"), {"i": u})
+              conn.execute(text("SET LOCAL app.user_id = :u"), {"u": u})
+              conn.execute(text("SET LOCAL app.org_id = ''"))
+              conn.execute(text("SET LOCAL app.role = 'student'"))
+              conn.execute(text("SET LOCAL ROLE app_role"))
+              print("after-set:", conn.execute(text("SELECT current_setting('app.user_id', true) AS v, current_user, (SELECT rolname FROM pg_roles WHERE rolname=current_setting('rolname', False) LIMIT 1)").mappings().first()))
+              print("whoami:", conn.execute(text("SELECT current_user, session_user, current_setting('app.user_id', true)")).first())
+              try:
+                  r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": u}).first()
+                  print("INSERT OK", r)
+                  conn.execute(text("DELETE FROM projects WHERE owner_id = :o"), {"o": u})
+              except Exception as ex:
+                  print("INSERT FAIL:", type(ex).__name__, str(ex))
+              tx.rollback()
+          PY
+          code=$?
+          if [ "$code" -ne 0 ] || grep -q "INSERT FAIL" diag.log; then
+            python - <<'PY'
+          import base64
+          data = open('diag.log', 'rb').read()
+          print('::error::DBTEST-B64:' + base64.b64encode(data[-2500:]).decode())
+          PY
+          fi
+          exit $code
       - name: Run db tests
         run: |
           set +e
