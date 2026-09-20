@@ -71,6 +71,7 @@ jobs:
       - run: alembic upgrade head
       - name: Run db tests
         run: |
+          set +e
           python -m pytest tests/test_db.py tests/test_auth_api.py -q --tb=short > pytest-db.log 2>&1
           code=$?
           if [ "$code" -ne 0 ]; then
