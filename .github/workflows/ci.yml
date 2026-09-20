@@ -82,4 +82,16 @@ jobs:
           PY
           fi
           exit $code
-      - run: alembic downgrade base && alembic upgrade head
+      - name: Migrate round-trip
+        run: |
+          set +e
+          alembic downgrade base && alembic upgrade head > migrate.log 2>&1
+          code=$?
+          if [ "$code" -ne 0 ]; then
+            python - <<'PY'
+          import base64
+          data = open('migrate.log', 'rb').read()
+          print('::error::DBTEST-B64:' + base64.b64encode(data[-2500:]).decode())
+          PY
+          fi
+          exit $code
