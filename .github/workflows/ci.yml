@@ -77,30 +77,44 @@ jobs:
           from sqlalchemy import create_engine, text
           u = str(uuid.uuid4())
           e = create_engine(os.environ['DATABASE_URL'])
-          with e.connect() as conn:
-              tx = conn.begin()
-              uid = str(uuid.uuid4())
-              conn.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag2@example.com', 'Diag')"), {"i": uid})
-              conn.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
-              conn.execute(text("SET LOCAL app.org_id = ''"))
-              conn.execute(text("SET LOCAL app.role = 'student'"))
-              conn.execute(text("SET LOCAL ROLE app_role"))
-              print("whoami:", conn.execute(text("SELECT current_user, session_user, current_setting('app.user_id', true)")).first())
-              print("expr-check:", conn.execute(text("SELECT :o = current_setting('app.user_id')::uuid"), {"o": uid}).fetchone()[0])
-              print("policies:", conn.execute(text(
-                  "SELECT c.relname, p.polname, p.polcmd, "
-                  "pg_get_expr(p.polqual, p.polrelid) AS using_expr, "
-                  "pg_get_expr(p.polwithcheck, p.polrelid) AS withcheck_expr "
-                  "FROM pg_policy p JOIN pg_class c ON c.oid = p.polrelid "
-                  "WHERE c.relname IN ('projects','users','evidence_items','messages')"
-              )).fetchall())
-              try:
-                  r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
-                  print("INSERT OK", r)
-                  conn.execute(text("DELETE FROM projects WHERE owner_id = :o"), {"o": uid})
-              except Exception as ex:
-                  print("INSERT FAIL:", type(ex).__name__, str(ex))
-              tx.rollback()
+
+          def try_insert(label, uid, setup):
+              with e.connect() as conn:
+                  tx = conn.begin()
+                  conn.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag3@example.com', 'Diag')"), {"i": uid})
+                  setup(conn, uid)
+                  guc = conn.execute(text("SELECT current_setting('app.user_id', true)")).fetchone()[0]
+                  print(f"{label} guc={guc} user={conn.execute(text('select current_user')).fetchone()[0]}")
+                  try:
+                      r = conn.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
+                      print(f"{label} INSERT OK", r)
+                  except Exception as ex:
+                      print(f"{label} INSERT FAIL:", type(ex).__name__, str(ex))
+                  tx.rollback()
+
+          uid_a = str(uuid.uuid4())
+          def setup_a(c, uid):
+              c.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
+              c.execute(text("SET LOCAL app.org_id = ''"))
+              c.execute(text("SET LOCAL app.role = 'student'"))
+              c.execute(text("SET LOCAL ROLE app_role"))
+          try_insert("A-local-then-role", uid_a, setup_a)
+
+          uid_b = str(uuid.uuid4())
+          def setup_b(c, uid):
+              c.execute(text("SET LOCAL ROLE app_role"))
+              c.execute(text(f"SET LOCAL app.user_id = '{uid}'"))
+              c.execute(text("SET LOCAL app.org_id = ''"))
+              c.execute(text("SET LOCAL app.role = 'student'"))
+          try_insert("B-role-then-local", uid_b, setup_b)
+
+          uid_c = str(uuid.uuid4())
+          def setup_c(c, uid):
+              c.execute(text(f"SET app.user_id = '{uid}'"))
+              c.execute(text("SET app.org_id = ''"))
+              c.execute(text("SET app.role = 'student'"))
+              c.execute(text("SET LOCAL ROLE app_role"))
+          try_insert("C-session-set", uid_c, setup_c)
           PY
           code=$?
           if [ "$code" -ne 0 ] || grep -q "INSERT FAIL" diag.log; then
