@@ -94,17 +94,14 @@ jobs:
               c.execute(text("SET LOCAL app.org_id = ''"))
               c.execute(text("SET LOCAL app.role = 'student'"))
               c.execute(text("SET LOCAL ROLE app_role"))
-              g = c.execute(text("SELECT current_user, current_setting('app.user_id', true)")).first()
-              c1 = c.execute(text("SELECT CAST(:o AS uuid) = current_setting('app.user_id')::uuid"), {"o": uid}).fetchone()[0]
-              print(f"[setup] who={g} clause1_owner_match={c1}")
-              return c.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
-          run("app-flow-insert", s1)
-
-          uid2 = str(uuid.uuid4())
-          def s2(c):
-              c.execute(text("INSERT INTO users (id, email, full_name) VALUES (:i, 'diag5@example.com', 'Diag')"), {"i": uid2})
-              return c.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid2}).first()
-          run("no-role-switch-insert", s2)
+              print("[explain]", c.execute(text("EXPLAIN (VERBOSE, COSTS OFF) INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).fetchall())
+              try:
+                  r = c.execute(text("INSERT INTO projects (owner_id, title, entry_type) VALUES (:o, 'diag', 'idea') RETURNING id"), {"o": uid}).first()
+                  return r
+              except Exception as ex:
+                  print("[direct-current_setting-in-policy]", type(ex).__name__, str(ex).splitlines()[0])
+                  return "insert-failed"
+          run("app-flow-with-explains", s1)
           PY
           code=$?
           if [ "$code" -ne 0 ] || grep -qE "FAIL|FAIL:" diag.log; then
