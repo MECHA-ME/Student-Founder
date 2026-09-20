@@ -58,7 +58,7 @@ def auth_headers(token: str) -> dict:
 
 def test_register_login_mfa_lifecycle(schema):
     client = TestClient(app)
-    email = f"alice-{uuid.uuid4().hex[:8]}@example.test"
+    email = f"alice-{uuid.uuid4().hex[:8]}@example.com"
     reg = register(client, email)
     assert reg["token_type"] == "bearer"
     assert reg["user"]["role"] == "student"
@@ -89,7 +89,7 @@ def test_register_login_mfa_lifecycle(schema):
 
 def test_refresh_rotation(schema):
     client = TestClient(app)
-    email = f"bob-{uuid.uuid4().hex[:8]}@example.test"
+    email = f"bob-{uuid.uuid4().hex[:8]}@example.com"
     reg = register(client, email)
 
     refreshed = client.post("/api/v1/auth/refresh", json={"refresh_token": reg["refresh_token"]})
@@ -103,7 +103,7 @@ def test_refresh_rotation(schema):
 
 def test_me_and_consents(schema):
     client = TestClient(app)
-    email = f"carol-{uuid.uuid4().hex[:8]}@example.test"
+    email = f"carol-{uuid.uuid4().hex[:8]}@example.com"
     reg = register(client, email)
     headers = auth_headers(reg["access_token"])
 
@@ -131,8 +131,8 @@ def test_me_and_consents(schema):
 
 def test_project_creation_and_rls(schema):
     client = TestClient(app)
-    email_a = f"dana-{uuid.uuid4().hex[:8]}@example.test"
-    email_b = f"erin-{uuid.uuid4().hex[:8]}@example.test"
+    email_a = f"dana-{uuid.uuid4().hex[:8]}@example.com"
+    email_b = f"erin-{uuid.uuid4().hex[:8]}@example.com"
     reg_a = register(client, email_a)
     reg_b = register(client, email_b)
     h_a = auth_headers(reg_a["access_token"])
@@ -167,7 +167,7 @@ def test_project_creation_and_rls(schema):
 
 def test_undeclared_guardian_consent_and_underage_profile(schema):
     client = TestClient(app)
-    email = f"finn-{uuid.uuid4().hex[:8]}@example.test"
+    email = f"finn-{uuid.uuid4().hex[:8]}@example.com"
     reg = register(client, email, age_group="under_18")
     headers = auth_headers(reg["access_token"])
 
@@ -185,7 +185,7 @@ def test_undeclared_guardian_consent_and_underage_profile(schema):
 
 def test_delete_soft_deletes_and_revokes_tokens(schema):
     client = TestClient(app)
-    email = f"gwen-{uuid.uuid4().hex[:8]}@example.test"
+    email = f"gwen-{uuid.uuid4().hex[:8]}@example.com"
     reg = register(client, email)
     headers = auth_headers(reg["access_token"])
 
