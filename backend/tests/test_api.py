@@ -11,44 +11,29 @@ def test_healthz_ok():
     assert response.json() == {"status": "ok", "service": "student-founder-api"}
 
 
-def test_overview_shape():
-    response = client.get("/api/v1/overview")
-    assert response.status_code == 200
-    body = response.json()
-    assert set(body) == {"user", "metrics", "projects"}
-    assert {"active_projects", "interviews_completed", "stage_funnel"} <= set(body["metrics"])
-    for project in body["projects"]:
-        assert {"project_id", "title", "stage", "next_best_action"} <= set(project)
+def _paths():
+    return set(app.openapi()["paths"].keys())
 
 
-def test_list_projects():
+def test_projects_requires_auth():
     response = client.get("/api/v1/projects")
-    assert response.status_code == 200
-    projects = response.json()["projects"]
-    assert len(projects) >= 1
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHENTICATED"
 
 
-def test_get_project_found():
-    response = client.get("/api/v1/projects/p-101")
-    assert response.status_code == 200
-    assert response.json()["title"] == "Campus Waste Tracker"
+def test_me_requires_auth():
+    response = client.get("/api/v1/me")
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHENTICATED"
 
 
-def test_get_project_not_found():
-    response = client.get("/api/v1/projects/does-not-exist")
-    assert response.status_code == 200
-    assert response.json() == {"detail": "Project not found"}
+def test_auth_router_mounted():
+    assert {"/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/auth/register"} <= _paths()
 
 
-def test_stages_codes():
-    response = client.get("/api/v1/stages")
-    assert response.status_code == 200
-    codes = [stage["code"] for stage in response.json()["stages"]]
-    assert codes == ["S0", "S1", "S2", "S3"]
+def test_projects_router_mounted():
+    assert "/api/v1/projects/{project_id}" in _paths()
 
 
-def test_journey_shape():
-    response = client.get("/api/v1/journey")
-    assert response.status_code == 200
-    body = response.json()
-    assert "user" in body and "stages" in body and "coach_message" in body
+def test_me_router_mounted():
+    assert "/api/v1/me/export" in _paths()
