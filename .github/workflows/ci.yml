@@ -96,11 +96,11 @@ jobs:
                 SELECT NULLIF(current_setting('app.user_id', true), '')::uuid $fn$"""))
               conn.execute(text("GRANT EXECUTE ON FUNCTION app_current_user_id() TO app_role"))
               variants = {
-                "P1-wcc-true": "true",
-                "P2-inline-eq-uid": f"current_setting('app.user_id', true) = '{uid}'::text",
-                "P3-owner-eq-definer": "owner_id = app_current_user_id()",
-                "P4-orig-inline": "owner_id = current_setting('app.user_id')::uuid OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = id AND pm.user_id = current_setting('app.user_id')::uuid)",
-                "P5-orig-definer": "owner_id = app_current_user_id() OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = id AND pm.user_id = app_current_user_id())",
+                "P1-wcc-true": ("true", True),
+                "P2-inline-eq-uid": (f"current_setting('app.user_id', true) = '{uid}'::text", True),
+                "P3-owner-eq-definer": ("owner_id = app_current_user_id()", True),
+                "P4-orig-inline": ("owner_id = current_setting('app.user_id')::uuid OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = id AND pm.user_id = current_setting('app.user_id')::uuid)", True),
+                "P5-orig-definer": ("owner_id = app_current_user_id() OR EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id = id AND pm.user_id = app_current_user_id())", True),
               }
               insert_cases = {
                 "P6-wcc-true-no-returning": ("true", False),
